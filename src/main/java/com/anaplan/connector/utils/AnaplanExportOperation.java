@@ -18,7 +18,6 @@ package com.anaplan.connector.utils;
 
 import java.io.IOException;
 
-
 import com.anaplan.client.AnaplanAPIException;
 import com.anaplan.client.Export;
 import com.anaplan.client.Model;
@@ -32,7 +31,7 @@ import com.anaplan.connector.exceptions.AnaplanOperationException;
 
 /**
  * Creates an export-task and executes it to data-dump Model contents and return
- * a <code>AnaplanResponse</code> object.
+ * an <code>AnaplanResponse</code> object.
  *
  * @author spondonsaha
  */
@@ -70,7 +69,7 @@ public class AnaplanExportOperation extends BaseAnaplanOperation {
 
 		if (status.getTaskState() == TaskStatus.State.COMPLETE &&
 			status.getResult().isSuccessful()) {
-			LogUtil.status(logContext, "Export complete.");
+			LogUtil.status(logContext, "Export completed successfully!");
 			final ServerFile serverFile = model.getServerFile(exp.getName());
 			if (serverFile == null) {
 				return AnaplanResponse.exportFailure(
@@ -78,6 +77,10 @@ public class AnaplanExportOperation extends BaseAnaplanOperation {
 								exp.getName()), exp.getExportMetadata(), null,
 						logContext);
 			}
+			// collect all server messages regarding the export, if any
+			setRunStatusDetails(collectTaskLogs(status));
+			LogUtil.status(logContext, getRunStatusDetails());
+
 			return AnaplanResponse.exportSuccess(status.getTaskState().name(),
 					serverFile, exp.getExportMetadata(), logContext);
 		} else {
@@ -128,8 +131,7 @@ public class AnaplanExportOperation extends BaseAnaplanOperation {
 			apiConn.closeConnection();
 		}
 
-		LogUtil.status(exportLogContext, "export operation " + exportId
-				+ " completed");
+		LogUtil.status(exportLogContext, "[" + exportId + "] ran successfully!");
 		return response;
 	}
 }

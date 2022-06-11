@@ -17,16 +17,13 @@
 package com.anaplan.connector.utils;
 
 
-import com.anaplan.client.Action;
 import com.anaplan.client.AnaplanAPIException;
 import com.anaplan.client.Model;
 import com.anaplan.client.Service;
-import com.anaplan.client.Task;
 import com.anaplan.client.TaskResult;
 import com.anaplan.client.TaskResultDetail;
 import com.anaplan.client.TaskStatus;
 import com.anaplan.client.Workspace;
-import com.anaplan.connector.AnaplanResponse;
 import com.anaplan.connector.connection.AnaplanConnection;
 import com.anaplan.connector.exceptions.AnaplanOperationException;
 
@@ -34,6 +31,7 @@ import com.anaplan.connector.exceptions.AnaplanOperationException;
 /**
  * Base class for Import, Export, Update and Delete operations for Anaplan
  * models. Provides validation logic for workspace and models.
+ *
  * @author spondonsaha
  */
 public class BaseAnaplanOperation {
@@ -42,21 +40,32 @@ public class BaseAnaplanOperation {
 	protected Service service;
 	protected Workspace workspace = null;
 	protected Model model = null;
-	protected static String runStatusDetails = null;
+	// TODO: Needs a setter as well.
+	private static String runStatusDetails = null;
 
 	public BaseAnaplanOperation(AnaplanConnection apiConn) {
 		setApiConn(apiConn);
 	}
 
 	/**
-	 * Public getter for the Run-status. The string for runStatusDetails is
+	 * Getter for the Run-status. The string for runStatusDetails is
 	 * populated by executeAction().
 	 *
 	 * @return String containing the run-detail logs sent back from the server
 	 * 		for running a particular action.
 	 */
-	public String getRunStatusDetails() {
+	public static String getRunStatusDetails() {
 		return runStatusDetails;
+	}
+
+	/**
+	 * Setter for runStatusDetails, usually server side logs of success or
+	 * failure.
+	 *
+	 * @param statusMsgs String containing status message logs.
+	 */
+	public static void setRunStatusDetails(String statusMsgs) {
+		runStatusDetails = statusMsgs;
 	}
 
 	/**
@@ -146,51 +155,21 @@ public class BaseAnaplanOperation {
 	}
 
 	/**
-	 * Used to run delete or M2M operations, or any such action that does not
-	 * rely on any input from the flow or outputs any data to the flow. This
-	 * allows you to execute any inert operation within Anaplan's core
-	 * infrastructure.
+	 * Helper method to collect logs sent back from server, using provided
+	 * TaskStatus object.
 	 *
-	 * @param model
-	 * @param actionId
-	 * @param logContext
+	 * @param status TaskStatus object containing task details
 	 * @return
-	 * @throws AnaplanAPIException
 	 */
-	protected static AnaplanResponse executeAction(Model model, String actionId,
-			String logContext) throws AnaplanAPIException {
-
-		final Action action = model.getAction(actionId);
-
-		if (action == null) {
-			final String msg = UserMessages.getMessage("invalidAction",
-					actionId);
-			return AnaplanResponse.executeActionFailure(msg, null, logContext);
-		}
-
-		final Task task = action.createTask();
-		final TaskStatus status = AnaplanUtil.runServerTask(task,logContext);
-
-		if (status.getTaskState() == TaskStatus.State.COMPLETE &&
-		    status.getResult().isSuccessful()) {
-			LogUtil.status(logContext, "Action executed successfully.");
-
-			// Collect all the status details for running the action.
-			final TaskResult taskResult = status.getResult();
-			final StringBuilder taskDetails = new StringBuilder();
-			if (taskResult.getDetails() != null) {
-				for (TaskResultDetail detail : taskResult.getDetails()) {
-					taskDetails.append("\n" + detail.getLocalizedMessageText());
-				}
-				runStatusDetails = taskDetails.toString();
+	public static String collectTaskLogs(TaskStatus status) {
+		final TaskResult taskResult = status.getResult();
+		final StringBuilder taskDetails = new StringBuilder();
+		if (taskResult.getDetails() != null) {
+			for (TaskResultDetail detail : taskResult.getDetails()) {
+				taskDetails.append("\n" + detail.getLocalizedMessageText());
 			}
-
-			return AnaplanResponse.executeActionSuccess(
-					status.getTaskState().name(),
-					logContext);
-		} else {
-			return AnaplanResponse.executeActionFailure("Execute Action Failed",
-					null, logContext);
+			return taskDetails.toString();
 		}
+		return null;
 	}
 }

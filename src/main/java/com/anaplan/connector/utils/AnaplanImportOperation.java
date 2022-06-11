@@ -31,7 +31,6 @@ import com.anaplan.client.Model;
 import com.anaplan.client.ServerFile;
 import com.anaplan.client.Task;
 import com.anaplan.client.TaskResult;
-import com.anaplan.client.TaskResultDetail;
 import com.anaplan.client.TaskStatus;
 import com.anaplan.connector.AnaplanResponse;
 import com.anaplan.connector.connection.AnaplanConnection;
@@ -40,13 +39,13 @@ import com.google.gson.JsonSyntaxException;
 
 
 /**
- * Used to import CSV data into Anaplan
+ * Used to import CSV data into Anaplan lists or modules.
+ *
  * @author spondonsaha
  */
 public class AnaplanImportOperation extends BaseAnaplanOperation{
 
 	protected static String[] HEADER;
-	private static String importDetails;
 
 	/**
 	 * Constructor
@@ -168,27 +167,17 @@ public class AnaplanImportOperation extends BaseAnaplanOperation{
 
 		final Task task = imp.createTask();
 		final TaskStatus status = AnaplanUtil.runServerTask(task, logContext);
-		final TaskResult taskResult = status.getResult();
 
 		final StringBuilder taskDetails = new StringBuilder();
-		 taskDetails.append("Import complete: (" + rowsProcessed
+		taskDetails.append(collectTaskLogs(status));
+		taskDetails.append("Import completed successfully: (" + rowsProcessed
 				 + " records processed)");
-
-		taskDetails.append("Import complete: Successfully");
-		if (taskResult.getDetails() != null) {
-			for (TaskResultDetail detail : taskResult.getDetails()) {
-				taskDetails.append("\n" + detail.getLocalizedMessageText());
-			}
-			if (status.getTaskState() == TaskStatus.State.COMPLETE
-					&& status.getResult().isSuccessful()) {
-				LogUtil.status(logContext, "Import complete");
-			}
-		}
-		importDetails = taskDetails.toString();
-		LogUtil.status(logContext, importDetails);
+		setRunStatusDetails(taskDetails.toString());
+		LogUtil.status(logContext, getRunStatusDetails());
 
 		// 3. Determine execution status and create response.
 
+		final TaskResult taskResult = status.getResult();
 		if (taskResult.isFailureDumpAvailable()) {
 			LogUtil.status(logContext, UserMessages.getMessage("failureDump"));
 			final ServerFile failDump = taskResult.getFailureDump();
@@ -200,11 +189,11 @@ public class AnaplanImportOperation extends BaseAnaplanOperation{
 			LogUtil.status(logContext, UserMessages.getMessage("noFailureDump"));
 
 			if (taskResult.isSuccessful()) {
-				return AnaplanResponse.importSuccess(importDetails, logContext,
-						serverFile);
+				return AnaplanResponse.importSuccess(getRunStatusDetails(),
+						logContext, serverFile);
 			} else {
-				return AnaplanResponse.importFailure(importDetails, null,
-						logContext);
+				return AnaplanResponse.importFailure(getRunStatusDetails(),
+						null, logContext);
 			}
 		}
 	}
@@ -255,6 +244,6 @@ public class AnaplanImportOperation extends BaseAnaplanOperation{
 
 		String statusMsg = "[" + importId + "] ran successfully!";
 		LogUtil.status(importLogContext, statusMsg);
-		return statusMsg + "\n\n" + importDetails;
+		return statusMsg + "\n\n" + getRunStatusDetails();
 	}
 }
